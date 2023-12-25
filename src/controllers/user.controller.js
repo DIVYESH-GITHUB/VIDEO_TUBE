@@ -4,6 +4,7 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
@@ -114,6 +115,46 @@ const registerUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, createdUser, "User created successfully"));
 });
 
+const registerUserMobile = asyncHandler(async (req, res) => {
+  const { userName, email, password, confirmPassword } = req.body;
+
+  // check is user already exist
+  const existedUser = await User.findOne({
+    $or: [{ email: email }, { userName: userName }],
+  });
+
+  if (existedUser) {
+    return res.status(404).json({
+      message: "User with email or username already exists",
+    });
+  }
+
+  // create a new user
+  const user = await User.create({
+    fullName: "temp",
+    avatar: "temp",
+    coverImage: "",
+    email,
+    password,
+    userName: userName.toLowerCase(),
+  });
+
+  // check is user is saved or not. If saved, get the info by removing password and refresh token.
+  const createdUser = await User.findById(user._id).select(
+    "-password -refreshToken"
+  );
+
+  if (!createdUser) {
+    return res.status(404).json({
+      message: "Something went wrong when registering the user",
+    });
+  }
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, createdUser, "User created successfully"));
+});
+
 const loginUser = asyncHandler(async (req, res) => {
   const { email, userName, password } = req.body;
 
@@ -126,6 +167,9 @@ const loginUser = asyncHandler(async (req, res) => {
   });
 
   if (!user) {
+    // return res.status(404).json({
+    //   message : 'User not found'
+    // })
     throw new ApiError(404, "user does not exist");
   }
 
@@ -163,6 +207,59 @@ const loginUser = asyncHandler(async (req, res) => {
         "user logged in successfully"
       )
     );
+});
+
+const loginUserMobile = asyncHandler(async (req, res) => {
+  const { email, userName, password } = req.body;
+
+  if (email == undefined && userName == undefined) {
+    return res.status(400).json({
+      message: "username or email is required",
+    });
+  }
+
+  const user = await User.findOne({
+    $or: [{ email: email }, { userName: userName }],
+  });
+
+  if (!user) {
+    return res.status(404).json({
+      message: "User not found",
+    });
+  }
+
+  const isPasswordCorrect = await user.isPasswordCorrect(password);
+
+  if (!isPasswordCorrect) {
+    return res.status(404).json({
+      message: "Invalid credentials",
+    });
+  }
+
+  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+    user._id
+  );
+
+  const loggedInUser = await User.findById(user._id).select(
+    "-password -refreshToken"
+  );
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        user: loggedInUser,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      },
+      "user logged in successfully"
+    )
+  );
 });
 
 const logoutUser = asyncHandler(async (req, res) => {
@@ -379,6 +476,60 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     );
 });
 
+const getUserWatchHistory = asyncHandler(async (req, res) => {
+  const user = await User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(req.user._id),
+      },
+    },
+    {
+      $lookup: {
+        from: "videos",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullName: 1,
+                    userName: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $first: "$owner",
+              },
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        user[0].watchHistory,
+        "Watch history fetched successfully"
+      )
+    );
+});
+
 export {
   registerUser,
   loginUser,
@@ -389,4 +540,7 @@ export {
   updateAccountDetails,
   updateUserAvatar,
   getUserChannelProfile,
+  getUserWatchHistory,
+  loginUserMobile,
+  registerUserMobile,
 };
