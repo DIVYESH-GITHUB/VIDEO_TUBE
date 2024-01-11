@@ -5,11 +5,9 @@ import {
   getUserChannelProfile,
   getUserWatchHistory,
   loginUser,
-  loginUserMobile,
   logoutUser,
   refereshAccessToken,
   registerUser,
-  registerUserMobile,
   updateAccountDetails,
   updateUserAvatar,
 } from "../controllers/user.controller.js";
@@ -21,11 +19,7 @@ const router = Router();
 // non- secure routes
 router.route("/register").post(upload.single("avatar"), registerUser);
 
-router.route("/register-mobile").post(registerUserMobile);
-
 router.route("/login").post(loginUser);
-
-router.route("/login-mobile").post(loginUserMobile);
 
 // secure routes
 router.route("/logout").post(verifyJWT, logoutUser);

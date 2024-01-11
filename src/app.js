@@ -27,14 +27,20 @@ app.use(
   })
 );
 
-// routes
-
+// user route
 import userRouter from "./routes/user.routes.js";
-
 app.use("/api/v1/users", userRouter);
 
+// video route
 import videoRouter from "./routes/video.routes.js";
-
 app.use("/api/v1/videos", videoRouter);
+
+// subscription route
+import subscriptionRouter from "./routes/subscription.routes.js";
+app.use("/api/v1/subscriptions", subscriptionRouter);
+
+// playlist router
+import playlistRouter from "./routes/playlist.routes.js";
+app.use("/api/v1/playlists", playlistRouter);
 
 export { app };

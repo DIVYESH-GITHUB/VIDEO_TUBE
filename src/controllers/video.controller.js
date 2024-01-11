@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Video } from "../models/video.model.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
@@ -5,12 +6,12 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { unlinkFile } from "../utils/unlinkFile.js";
 
-const unlinkVideoAndThumbnail = async () => {
+const unlinkVideoAndThumbnail = async (thumbnailLocalPath, videoLocalPath) => {
   await unlinkFile(thumbnailLocalPath);
   await unlinkFile(videoLocalPath);
 };
 
-const uploadVideo = asyncHandler(async (req, res) => {
+const publishVideo = asyncHandler(async (req, res) => {
   const { title, description } = req.body;
   // check if title is provided
   if (!title) {
@@ -43,26 +44,26 @@ const uploadVideo = asyncHandler(async (req, res) => {
   }
 
   if (!videoLocalPath) {
-    unlinkVideoAndThumbnail();
+    unlinkVideoAndThumbnail(thumbnailLocalPath, videoLocalPath);
     throw new ApiError(400, "Video file not found");
   }
 
   if (!thumbnailLocalPath) {
-    unlinkVideoAndThumbnail();
+    unlinkVideoAndThumbnail(thumbnailLocalPath, videoLocalPath);
     throw new ApiError(400, "thumbnail file not found");
   }
 
   // upload video file on cloudinary
   const video = await uploadOnCloudinary(videoLocalPath);
   if (!video) {
-    unlinkVideoAndThumbnail();
+    unlinkVideoAndThumbnail(thumbnailLocalPath, videoLocalPath);
     throw new ApiError(500, "something went wrong uploading video");
   }
 
   // upload thumbnail file on cloudinary
   const thumbnail = await uploadOnCloudinary(thumbnailLocalPath);
   if (!thumbnail) {
-    unlinkVideoAndThumbnail();
+    unlinkVideoAndThumbnail(thumbnailLocalPath, videoLocalPath);
     throw new ApiError(500, "somthing went wrong uploading thumbnail");
   }
 
@@ -76,7 +77,7 @@ const uploadVideo = asyncHandler(async (req, res) => {
   });
 
   if (!savedVideo) {
-    unlinkVideoAndThumbnail();
+    unlinkVideoAndThumbnail(thumbnailLocalPath, videoLocalPath);
     throw new ApiError(500, "Something went wrong while uploading video");
   }
 
@@ -85,4 +86,132 @@ const uploadVideo = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, savedVideo, "Video uploaded successfully"));
 });
 
-export { uploadVideo };
+const getVideoById = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(videoId)) {
+    throw new ApiError(404, "Video not found");
+  }
+
+  const video = await Video.findById(videoId);
+
+  if (!video) {
+    throw new ApiError(404, "Video not found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, video, "Video fetched successfully"));
+});
+
+const deleteVideo = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(videoId)) {
+    throw new ApiError(404, "Video not found");
+  }
+
+  const video = await Video.findByIdAndDelete(videoId);
+
+  if (!video) {
+    throw new ApiError(404, "Video not found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, video, "Video deleted successfully"));
+});
+
+const updateVideo = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+  const { title, description } = req.body;
+  let thumbnailLocalPath;
+
+  if (!mongoose.Types.ObjectId.isValid(videoId)) {
+    throw new ApiError(404, "Invalid video id");
+  }
+
+  const video = await Video.findById(videoId);
+
+  if (!video) {
+    throw new ApiError(404, "Video not found");
+  }
+
+  if (title) {
+    video.title = title;
+  }
+  if (description) {
+    video.description = description;
+  }
+  if (req.file?.path) {
+    thumbnailLocalPath = req.file?.path;
+    const newThumbnail = await uploadOnCloudinary(thumbnailLocalPath);
+    if (!newThumbnail) {
+      throw new ApiError(
+        500,
+        "Something went wrong when updating the thumbnail"
+      );
+    }
+    video.thumbnail = newThumbnail.url;
+  }
+
+  const updatedVideo = await Video.findByIdAndUpdate(
+    videoId,
+    {
+      $set: {
+        title: video.title,
+        description: video.description,
+        thumbnail: video.thumbnail,
+      },
+    },
+    { new: true }
+  );
+
+  if (!updatedVideo) {
+    throw new ApiError(500, "Something went wrong when updating the video");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedVideo, "Video updated successfully"));
+});
+
+const togglePublishStatus = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(videoId)) {
+    throw new ApiError(404, "Invalid video id");
+  }
+
+  const video = await Video.findById(videoId);
+
+  if (!video) {
+    throw new ApiError(404, "Video not found");
+  }
+
+  const updatedVideo = await Video.findByIdAndUpdate(
+    video._id,
+    {
+      $set: {
+        isPublished: !video.isPublished,
+      },
+    },
+    { new: true }
+  );
+
+  if (!updatedVideo) {
+    throw new ApiError(500, "Something went wrong when updating the video");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedVideo, "Video updated successfully"));
+});
+
+export {
+  publishVideo,
+  getVideoById,
+  deleteVideo,
+  updateVideo,
+  togglePublishStatus,
+};
