@@ -27,6 +27,10 @@ app.use(
   })
 );
 
+// health check route
+import healthcheckRouter from "./routes/healthcheck.routes.js";
+app.use("/api/v1/healthcheck", healthcheckRouter);
+
 // user route
 import userRouter from "./routes/user.routes.js";
 app.use("/api/v1/users", userRouter);
