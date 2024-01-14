@@ -1,8 +1,9 @@
 import mongoose from "mongoose";
-import { Subscription } from "../models/subscription.model";
-import { ApiResponse } from "../utils/apiResponse";
-import { asyncHandler } from "../utils/asyncHandler";
-import { ApiError } from "../utils/apiError";
+import { Subscription } from "../models/subscription.model.js";
+import { ApiResponse } from "../utils/apiResponse.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/apiError.js";
+import { User } from "../models/user.model.js";
 
 const toggleSubscription = asyncHandler(async (req, res) => {
   const { channelId } = req.params;
@@ -11,11 +12,9 @@ const toggleSubscription = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid channel Id");
   }
 
-  const Channel = await Subscription.findOne({
-    channel: channelId,
-  });
+  const channel = await User.findById(channelId);
 
-  if (!Channel) {
+  if (!channel) {
     throw new ApiError(400, "channel not found");
   }
 
@@ -65,17 +64,14 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
     return res
       .status(200)
       .json(
-        new ApiResponse(
-          200,
-          (message = "You are not subscribed to any channel")
-        )
+        new ApiResponse(200, null, "You are not subscribed to any channel")
       );
   }
 
   const subscribedChannels = await Subscription.aggregate([
     {
       $match: {
-        subscriber: subscriberId,
+        subscriber: new mongoose.Types.ObjectId(subscriberId),
       },
     },
     {
@@ -84,6 +80,16 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
         foreignField: "_id",
         localField: "channel",
         as: "subscribedChannels",
+        pipeline: [
+          {
+            $project: {
+              userName: 1,
+              email: 1,
+              fullName: 1,
+              avatar: 1,
+            },
+          },
+        ],
       },
     },
     {
@@ -92,6 +98,8 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
       },
     },
   ]);
+
+  console.log(subscribedChannels);
 
   return res
     .status(200)
@@ -118,13 +126,13 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
   if (!doesChannelHaveAnySubcriber) {
     return res
       .status(200)
-      .json(new ApiResponse(200, (message = "Channel has no subscribers")));
+      .json(new ApiResponse(200, null, "Channel has no subscribers"));
   }
 
   const channelSubscribers = await Subscription.aggregate([
     {
       $match: {
-        channel: channelId,
+        channel: new mongoose.Types.ObjectId(channelId),
       },
     },
     {
@@ -133,6 +141,16 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
         foreignField: "_id",
         localField: "subscriber",
         as: "channelSubscribers",
+        pipeline: [
+          {
+            $project: {
+              userName: 1,
+              email: 1,
+              fullName: 1,
+              avatar: 1,
+            },
+          },
+        ],
       },
     },
     {
