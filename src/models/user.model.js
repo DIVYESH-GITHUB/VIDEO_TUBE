@@ -26,7 +26,7 @@ const userSchema = new mongoose.Schema(
       index: true,
     },
     avatar: {
-      type: String, // cloudinary url will be here.
+      type: String, 
       required: true,
     },
     watchHistory: [
@@ -37,7 +37,7 @@ const userSchema = new mongoose.Schema(
     ],
     password: {
       type: String,
-      required: [true, "Password is required"],
+      required: true,
     },
     refreshToken: {
       type: String,

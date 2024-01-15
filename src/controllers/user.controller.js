@@ -111,7 +111,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
   return res
     .status(201)
-    .json(new ApiResponse(201, createdUser, "User created successfully"));
+    .json(new ApiResponse(201, createdUser, "Registeration successfully"));
 });
 
 const loginUser = asyncHandler(async (req, res) => {
@@ -261,8 +261,18 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 const updateAccountDetails = asyncHandler(async (req, res) => {
   const { userName, fullName } = req.body;
 
-  if (!fullName && !userName) {
-    throw new ApiError(400, "ALl fields are required");
+  if (!fullName) {
+    throw new ApiError(400, "fullName is not specified");
+  }
+  if (!fullName.match("^(?![. ])[a-zA-Z. ]+(?<! )$")) {
+    throw new ApiError(400, "fullName is not a valid");
+  }
+
+  if (!userName) {
+    throw new ApiError(400, "username is not specified");
+  }
+  if (!userName.match("^[a-z0-9_-]{3,16}$")) {
+    throw new ApiError(400, "username is not a valid");
   }
 
   const user = await User.findByIdAndUpdate(

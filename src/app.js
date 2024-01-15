@@ -59,4 +59,8 @@ app.use("/api/v1/likes", likeRouter);
 import tweetRouter from "./routes/tweet.routes.js";
 app.use("/api/v1/tweets", tweetRouter);
 
+// dashboard router
+import dashboardRouter from "./routes/dashboard.routes.js";
+app.use("/api/v1/dashboard", dashboardRouter);
+
 export { app };
