@@ -1,8 +1,8 @@
 {
-  "name": "backend",
+  "name": "video_tube",
   "type": "module",
   "version": "1.0.0",
-  "description": "backend tutorial by HITESH CHAUDHARY ( CHAI aur CODE )",
+  "description": "a robust backend project developed with a stack comprised of MongoDB, Express.js, and Node.js, powering a feature-rich platform reminiscent of YouTube",
   "main": "index.js",
   "scripts": {
     "dev": "nodemon -r dotenv/config --experimental-json-modules src/index.js"
