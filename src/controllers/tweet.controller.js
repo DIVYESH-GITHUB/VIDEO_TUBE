@@ -4,6 +4,8 @@ import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
+// ################################################################
+
 const createTweet = asyncHandler(async (req, res) => {
   const { content } = req.body;
 
@@ -27,6 +29,8 @@ const createTweet = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, tweet, "Tweet created successfully"));
 });
 
+// ################################################################
+
 const getUserTweets = asyncHandler(async (req, res) => {
   const tweets = await Tweet.find({
     owner: req.user._id,
@@ -39,6 +43,8 @@ const getUserTweets = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, tweets, "Tweets fetched successfully"));
 });
+
+// ################################################################
 
 const updateTweet = asyncHandler(async (req, res) => {
   const { tweetId } = req.params;
@@ -74,6 +80,8 @@ const updateTweet = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, updatedTweet, "Tweet updated successfully"));
 });
 
+// ################################################################
+
 const deleteTweet = asyncHandler(async (req, res) => {
   const { tweetId } = req.params;
   if (!tweetId) {
@@ -93,5 +101,7 @@ const deleteTweet = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, deletedTweet, "tweet deleted successfully"));
 });
+
+// ################################################################
 
 export { createTweet, getUserTweets, updateTweet, deleteTweet };

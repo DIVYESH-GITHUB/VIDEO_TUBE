@@ -5,6 +5,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import { User } from "../models/user.model.js";
 
+// ################################################################
+
 const toggleSubscription = asyncHandler(async (req, res) => {
   const { channelId } = req.params;
 
@@ -49,6 +51,8 @@ const toggleSubscription = asyncHandler(async (req, res) => {
   }
 });
 
+// ################################################################
+
 const getSubscribedChannels = asyncHandler(async (req, res) => {
   const { subscriberId } = req.params;
 
@@ -56,22 +60,10 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid subscriber Id");
   }
 
-  const isSubscribedToAnyChannel = await Subscription.findOne({
-    subscriber: subscriberId,
-  });
-
-  if (!isSubscribedToAnyChannel) {
-    return res
-      .status(200)
-      .json(
-        new ApiResponse(200, null, "You are not subscribed to any channel")
-      );
-  }
-
   const subscribedChannels = await Subscription.aggregate([
     {
       $match: {
-        subscriber: new mongoose.Types.ObjectId(subscriberId),
+        subscriber: subscriberId,
       },
     },
     {
@@ -99,7 +91,13 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
     },
   ]);
 
-  console.log(subscribedChannels);
+  if (subscribedChannels.length == 0) {
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, null, "You are not subscribed to any channel")
+      );
+  }
 
   return res
     .status(200)
@@ -112,6 +110,8 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
     );
 });
 
+// ################################################################
+
 const getUserChannelSubscribers = asyncHandler(async (req, res) => {
   const { channelId } = req.params;
 
@@ -119,20 +119,10 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid channel Id");
   }
 
-  const doesChannelHaveAnySubcriber = await Subscription.findOne({
-    channel: channelId,
-  });
-
-  if (!doesChannelHaveAnySubcriber) {
-    return res
-      .status(200)
-      .json(new ApiResponse(200, null, "Channel has no subscribers"));
-  }
-
   const channelSubscribers = await Subscription.aggregate([
     {
       $match: {
-        channel: new mongoose.Types.ObjectId(channelId),
+        channel: channelId,
       },
     },
     {
@@ -160,6 +150,12 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
     },
   ]);
 
+  if (channelSubscribers.length == 0) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, null, "Channel has no subscribers"));
+  }
+
   return res
     .status(200)
     .json(
@@ -170,5 +166,7 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
       )
     );
 });
+
+// ################################################################
 
 export { toggleSubscription, getSubscribedChannels, getUserChannelSubscribers };

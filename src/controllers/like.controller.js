@@ -7,6 +7,8 @@ import { Like } from "../models/like.model.js";
 import { Comment } from "../models/comment.model.js";
 import { Tweet } from "../models/tweet.model.js";
 
+// ################################################################
+
 const toggleVideoLike = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
 
@@ -47,6 +49,8 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, like, "Video liked successfully"));
 });
+
+// ################################################################
 
 const toggleCommentLike = asyncHandler(async (req, res) => {
   const { commentId } = req.params;
@@ -89,6 +93,8 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, like, "comment liked successfully"));
 });
 
+// ################################################################
+
 const toggleTweetLike = asyncHandler(async (req, res) => {
   const { tweetId } = req.params;
 
@@ -130,12 +136,45 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, like, "Tweet liked successfully"));
 });
 
+// ################################################################
+
 const getLikedVideos = asyncHandler(async (req, res) => {
-  const likedVideo = await Like.find({
-    likedBy: req.user._id,
-    comment: null,
-    tweet: null,
-  });
+  const likedVideo = await Like.aggregate([
+    {
+      $match: {
+        likedBy: req.user._id,
+        comment: null,
+        tweet: null,
+      },
+    },
+    {
+      $lookup: {
+        from: "videos",
+        foreignField: "_id",
+        localField: "video",
+        as: "video",
+        pipeline: [
+          {
+            $project: {
+              videoFile: 1,
+              thumbnail: 1,
+              title: 1,
+              duration: 1,
+              views: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $unwind: {
+        path: "$video",
+      },
+    },
+    {
+      $unset: "likedBy",
+    },
+  ]);
 
   if (likedVideo.length == 0) {
     return res
@@ -147,5 +186,7 @@ const getLikedVideos = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, likedVideo, "liked video fetched successfully"));
 });
+
+// ################################################################
 
 export { toggleVideoLike, toggleCommentLike, getLikedVideos, toggleTweetLike };

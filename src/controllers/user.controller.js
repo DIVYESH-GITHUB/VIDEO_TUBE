@@ -4,7 +4,8 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
+
+// ################################################################
 
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
@@ -23,6 +24,8 @@ const generateAccessAndRefreshTokens = async (userId) => {
     throw new ApiError(500, "Something went wrong");
   }
 };
+
+// ################################################################
 
 const registerUser = asyncHandler(async (req, res) => {
   const { fullName, email, password, userName } = req.body;
@@ -114,6 +117,8 @@ const registerUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, createdUser, "Registeration successfully"));
 });
 
+// ################################################################
+
 const loginUser = asyncHandler(async (req, res) => {
   const { email, userName, password } = req.body;
 
@@ -165,11 +170,11 @@ const loginUser = asyncHandler(async (req, res) => {
     );
 });
 
+// ################################################################
+
 const logoutUser = asyncHandler(async (req, res) => {
   User.findByIdAndUpdate(req.user._id, {
-    $set: {
-      refreshToken: undefined,
-    },
+    refreshToken: undefined,
   });
   const options = {
     httpOnly: true,
@@ -181,6 +186,8 @@ const logoutUser = asyncHandler(async (req, res) => {
     .clearCookie("refreshToken", options)
     .json(new ApiResponse(200, {}, "User logged out successfully"));
 });
+
+// ################################################################
 
 const refereshAccessToken = asyncHandler(async (req, res) => {
   try {
@@ -231,6 +238,8 @@ const refereshAccessToken = asyncHandler(async (req, res) => {
   }
 });
 
+// ################################################################
+
 const changeCurrentPassword = asyncHandler(async (req, res) => {
   const { oldPassword, newPassword } = req.body;
   const userId = req.user?._id;
@@ -252,44 +261,57 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Password changed successfully"));
 });
 
+// ################################################################
+
 const getCurrentUser = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, req.user, "current user fetched successfully"));
 });
 
+// ################################################################
+
 const updateAccountDetails = asyncHandler(async (req, res) => {
   const { userName, fullName } = req.body;
 
-  if (!fullName) {
-    throw new ApiError(400, "fullName is not specified");
-  }
-  if (!fullName.match("^(?![. ])[a-zA-Z. ]+(?<! )$")) {
-    throw new ApiError(400, "fullName is not a valid");
+  const user = await User.findById(req.user?._id).select(
+    "-password -refreshToken"
+  );
+
+  if (userName) {
+    const sameUserNameExist = await User.findOne({ userName });
+
+    if (sameUserNameExist) {
+      throw new ApiError(
+        401,
+        "username is already in use. Please choose a different username"
+      );
+    }
+
+    if (!userName.match("^[a-z0-9_-]{3,16}$")) {
+      throw new ApiError(400, "username is not a valid");
+    }
+
+    user.userName = userName;
   }
 
-  if (!userName) {
-    throw new ApiError(400, "username is not specified");
-  }
-  if (!userName.match("^[a-z0-9_-]{3,16}$")) {
-    throw new ApiError(400, "username is not a valid");
+  if (fullName) {
+    if (!fullName.match("^(?![. ])[a-zA-Z. ]+(?<! )$")) {
+      throw new ApiError(400, "fullName is not a valid");
+    }
+    user.fullName = fullName;
   }
 
-  const user = await User.findByIdAndUpdate(
-    req.user?._id,
-    {
-      $set: {
-        fullName,
-        userName,
-      },
-    },
-    { new: true }
-  ).select("-password -refreshToken");
+  const updatedUser = await user.save();
 
   return res
     .status(200)
-    .json(new ApiResponse(200, user, "Account details updated successfully"));
+    .json(
+      new ApiResponse(200, updatedUser, "Account details updated successfully")
+    );
 });
+
+// ################################################################
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
   const avatarLocalPath = req.file?.path;
@@ -307,9 +329,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
   const user = await User.findByIdAndUpdate(
     req.user?._id,
     {
-      $set: {
-        avatar: avatar.url,
-      },
+      avatar: avatar.url,
     },
     { new: true }
   );
@@ -319,11 +339,15 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "avatar updated successfully"));
 });
 
+// ################################################################
+
 const getUserChannelProfile = asyncHandler(async (req, res) => {
   const { userName } = req.params;
+
   if (!userName?.trim()) {
     throw new ApiError(400, "User name is missing");
   }
+
   const channel = await User.aggregate([
     {
       $match: {
@@ -333,16 +357,16 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     {
       $lookup: {
         from: "subscriptions",
-        localField: "_id",
         foreignField: "channel",
+        localField: "_id",
         as: "subscribers",
       },
     },
     {
       $lookup: {
         from: "subscriptions",
-        localField: "_id",
         foreignField: "subscriber",
+        localField: "_id",
         as: "subscribedTo",
       },
     },
@@ -374,6 +398,8 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         subscribersCount: 1,
         channelsSubscribedToCount: 1,
         isSubscribed: 1,
+        subscribers: 1,
+        subscribedTo: 1,
       },
     },
   ]);
@@ -389,25 +415,27 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     );
 });
 
+// ################################################################
+
 const getUserWatchHistory = asyncHandler(async (req, res) => {
   const user = await User.aggregate([
     {
       $match: {
-        _id: new mongoose.Types.ObjectId(req.user._id),
+        _id: req.user?._id,
       },
     },
     {
       $lookup: {
         from: "videos",
-        localField: "watchHistory",
         foreignField: "_id",
+        localField: "watchHistory",
         as: "watchHistory",
         pipeline: [
           {
             $lookup: {
               from: "users",
-              localField: "owner",
               foreignField: "_id",
+              localField: "owner",
               as: "owner",
               pipeline: [
                 {
@@ -442,6 +470,8 @@ const getUserWatchHistory = asyncHandler(async (req, res) => {
       )
     );
 });
+
+// ################################################################
 
 export {
   registerUser,

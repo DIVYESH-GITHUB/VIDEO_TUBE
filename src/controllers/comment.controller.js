@@ -5,11 +5,17 @@ import { Video } from "../models/video.model.js";
 import { Comment } from "../models/comment.model.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 
+// ################################################################
+
 const getVideoComments = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
+  const { page, limit } = req.query;
 
   if (!videoId) {
     throw new ApiError(400, "Video Id is required");
+  }
+  if (!mongoose.Types.ObjectId.isValid(videoId)) {
+    throw new ApiError(400, "Invalid video Id");
   }
 
   const video = await Video.findById(videoId);
@@ -17,19 +23,55 @@ const getVideoComments = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Video not found");
   }
 
-  const videoComments = await Comment.find({
-    video: videoId,
-  });
+  const videoComments = await Comment.aggregate([
+    {
+      $match: {
+        video: new mongoose.Types.ObjectId(videoId),
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        foreignField: "_id",
+        localField: "owner",
+        as: "owner",
+        pipeline: [
+          {
+            $project: {
+              userName: 1,
+              avatar: 1,
+              fullName: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        owner: {
+          $first: "$owner",
+        },
+      },
+    },
+    {
+      $skip: (parseInt(page) - 1) * parseInt(limit),
+    },
+    {
+      $limit: parseInt(limit),
+    },
+  ]);
 
-  if (!videoComments) {
+  if (videoComments.length == 0) {
     return res
       .status(200)
-      .json(new ApiResponse(200, null, "Video has no comments"));
+      .json(new ApiResponse(200, {}, "Video has no comments"));
   }
   return res
     .status(200)
     .json(new ApiResponse(200, videoComments, "comments fetched successfully"));
 });
+
+// ################################################################
 
 const addComment = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
@@ -65,6 +107,8 @@ const addComment = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, comment, "Comment added successfully"));
 });
 
+// ################################################################
+
 const deleteComment = asyncHandler(async (req, res) => {
   const { commentId } = req.params;
 
@@ -84,6 +128,8 @@ const deleteComment = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, deletedComment, "Comment deleted successfully"));
 });
+
+// ################################################################
 
 const updateComment = asyncHandler(async (req, res) => {
   const { commentId } = req.params;
@@ -118,5 +164,7 @@ const updateComment = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, updatedComment, "Comment updated successfully"));
 });
+
+// ################################################################
 
 export { addComment, deleteComment, updateComment, getVideoComments };

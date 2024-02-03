@@ -1,0 +1,9 @@
+healthcheck
+user 
+video - get all video remaining
+subscription
+playlist
+comment
+like
+tweet
+dashbboard

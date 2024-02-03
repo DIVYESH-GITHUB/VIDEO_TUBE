@@ -1,5 +1,7 @@
 import mongoose, { Schema } from "mongoose";
 
+// ################################################################
+
 const PlaylistSchema = new Schema({
   name: {
     type: String,
@@ -20,5 +22,7 @@ const PlaylistSchema = new Schema({
     ref: "User",
   },
 });
+
+// ################################################################
 
 export const Playlist = mongoose.model("Playlist", PlaylistSchema);

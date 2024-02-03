@@ -3,10 +3,10 @@ import { verifyJWT } from "../middlewares/auth.middleware.js";
 import {
   deleteVideo,
   getAllVideos,
-  getVideoById,
   publishVideo,
   togglePublishStatus,
   updateVideo,
+  watchVideo,
 } from "../controllers/video.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 
@@ -31,7 +31,7 @@ router.route("/publish-video").post(
 
 router
   .route("/:videoId")
-  .get(getVideoById) // Get the video by video Id
+  .get(watchVideo) // Get the video by video Id
   .delete(deleteVideo) // Delete the video by video Id
   .patch(upload.single("thumbnail"), updateVideo); // Update the video by video Id
 
